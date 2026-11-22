@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Provision vs Food AI Tracker v2</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #f1f5f9; color: #1e293b; padding-bottom: 60px; }
+    header { background: #0f172a; color: #fff; padding: 16px; position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+    header h1 { font-size: 17px; font-weight: 700; }
+    header p { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .btn-header { background: #1e293b; color: #fff; border: 1px solid #334155; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    main { max-width: 480px; margin: 0 auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+    .card { background: #fff; border-radius: 16px; padding: 15px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .hidden { display: none !important; }
+    label { display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; }
+    input[type="password"], input[type="url"], textarea, select { width: 100%; padding: 11px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; color: #0f172a; margin-bottom: 10px; }
+    textarea { resize: none; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 11px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; }
+    .btn-dark { background: #0f172a; color: #fff; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-primary:disabled { opacity: 0.6; }
+    .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
+    .btn-green { background: #059669; color: #fff; font-size: 12px; padding: 10px; }
+    .btn-blue { background: #0284c7; color: #fff; font-size: 12px; padding: 10px; }
+    .btn-danger { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; font-size: 12px; padding: 10px 14px; width: auto; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-prov { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 14px; padding: 13px; }
+    .stat-prov .lbl { font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase; }
+    .stat-prov .val { font-size: 22px; font-weight: 800; color: #064e3b; margin-top: 4px; }
+    .stat-food { background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; padding: 13px; }
+    .stat-food .lbl { font-size: 11px; font-weight: 700; color: #b45309; text-transform: uppercase; }
+    .stat-food .val { font-size: 22px; font-weight: 800; color: #78350f; margin-top: 4px; }
+    .diff-box { display: flex; justify-content: space-between; align-items: center; }
+    .diff-val { font-size: 20px; font-weight: 800; color: #4f46e5; }
+    .diff-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .other-bar { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; font-size: 12px; color: #475569; }
+    .row-actions { display: flex; gap: 8px; }
+    .status { font-size: 12px; text-align: center; margin-top: 8px; font-weight: 600; }
+    .entry-item { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .entry-title { font-size: 14px; font-weight: 600; color: #1e293b; }
+    .entry-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+    .badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+    .b-Provision { background: #d1fae5; color: #065f46; }
+    .b-Food { background: #fef3c7; color: #92400e; }
+    .b-Bills { background: #e0e7ff; color: #3730a3; }
+    .b-Travel { background: #e0f2fe; color: #075985; }
+    .b-Medical { background: #ffe4e6; color: #9f1239; }
+    .b-Other { background: #f1f5f9; color: #334155; }
+    .entry-amt { font-size: 15px; font-weight: 700; color: #0f172a; margin-right: 10px; }
+    .del-btn { background: none; border: none; color: #94a3b8; font-size: 15px; cursor: pointer; padding: 4px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Provision vs. Food AI</h1>
+      <p>Smart Expense, Scan & Sheets Backup</p>
+    </div>
+    <button class="btn-header" onclick="toggleSettings()">⚙️ Setup Keys</button>
+  </header>
+
+  <main>
+    <!-- Settings Panel -->
+    <section id="settingsPanel" class="card hidden">
+      <label>Gemini API Key (Required for AI)</label>
+      <input id="geminiKeyInput" type="password" placeholder="AIzaSy..." />
+      <label>Google Sheets Web App URL (Optional Backup)</label>
+      <input id="sheetUrlInput" type="url" placeholder="https://google.com" />
+      <button class="btn btn-dark" onclick="saveSettings()">Save Configuration</button>
+    </section>
+
+    <!-- Month Filter -->
+    <section class="card" style="padding: 10px 14px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <label style="margin:0; white-space:nowrap;">Filter Period:</label>
+        <select id="monthFilter" onchange="renderUI()" style="margin:0; padding:7px 10px; font-size:13px;">
+          <option value="ALL">All Time</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Primary Provision vs Food Cards -->
+    <section class="grid-2">
+      <div class="stat-prov">
+        <div class="lbl">Provision (Groceries)</div>
+        <div id="provisionTotal" class="val">₹0</div>
+      </div>
+      <div class="stat-food">
+        <div class="lbl">Food (Dining/Order)</div>
+        <div id="foodTotal" class="val">₹0</div>
+      </div>
+    </section>
+
+    <!-- Difference & Grand Total Card -->
+    <section class="card">
+      <div class="diff-box">
+        <div>
+          <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Difference (Prov vs Food)</div>
+          <div id="diffAmount" class="diff-val">₹0</div>
+          <div id="diffLabel" class="diff-sub">Equal spending</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Grand Total</div>
+          <div id="grandTotal" style="font-size:20px; font-weight:800; color:#0f172a;">₹0</div>
+        </div>
+      </div>
+      <div class="other-bar">
+        <span>Other Categories (Bills, Travel, Medical):</span>
+        <strong id="otherTotal">₹0</strong>
+      </div>
+    </section>
+
+    <!-- AI Text Input & Camera Scan -->
+    <section class="card">
+      <label>Add Expense via Text or Receipt Photo</label>
+      <textarea id="expenseText" rows="2" placeholder="e.g., Rice 350, milk 60, Zomato biryani 280, auto 90"></textarea>
+      <div class="row-actions">
+        <label class="btn btn-secondary" style="margin:0; flex:1; text-transform:none;">
+          📷 Scan Bill
+          <input id="billImageInput" type="file" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)" />
+        </label>
+        <button id="analyzeBtn" class="btn btn-primary" style="flex:1;" onclick="processExpense()">✨ AI Add</button>
+      </div>
+      <div id="statusMsg" class="status hidden"></div>
+    </section>
+
+    <!-- Backup & Export Actions -->
+    <section class="row-actions">
+      <button id="backupBtn" class="btn btn-green" style="flex:1;" onclick="backupToGoogleSheets()">☁️ Backup Sheets</button>
+      <button class="btn btn-blue" style="flex:1;" onclick="exportCSV()">📥 Export CSV</button>
+      <button class="btn btn-danger" onclick="clearAllData()">Clear</button>
+    </section>
+
+    <!-- Expense List -->
+    <section>
+      <label style="padding-left:4px;">Expense History (Local Storage)</label>
+      <div id="expenseList"></div>
+    </section>
+  </main>
+
+  <script>
+    let expenses = JSON.parse(localStorage.getItem("ai_expenses_v2") || "[]");
+    let geminiKey = localStorage.getItem("gemini_api_key") || "";
+    let sheetUrl = localStorage.getItem("google_sheet_url") || "";
+    let selectedImageBase64 = null;
+    let selectedImageMime = null;
+
+    document.getElementById("geminiKeyInput").value = geminiKey;
+    document.getElementById("sheetUrlInput").value = sheetUrl;
+    if (!geminiKey) document.getElementById("settingsPanel").classList.remove("hidden");
+
+    populateMonthDropdown();
+    renderUI();
+
+    function toggleSettings() {
+      document.getElementById("settingsPanel").classList.toggle("hidden");
+    }
+
+    function saveSettings() {
+      geminiKey = document.getElementById("geminiKeyInput").value.trim();
+      sheetUrl = document.getElementById("sheetUrlInput").value.trim();
+      localStorage.setItem("gemini_api_key", geminiKey);
+      localStorage.setItem("google_sheet_url", sheetUrl);
+      toggleSettings();
+      showStatus("Settings saved locally!", "#059669");
+    }
+
+    function showStatus(msg, color = "#475569") {
+      const el = document.getElementById("statusMsg");
+      el.textContent = msg;
+      el.style.color = color;
+      el.classList.remove("hidden");
+    }
+
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        selectedImageMime = file.type;
+        selectedImageBase64 = e.target.result.split(",")[1];
+        showStatus(`Receipt attached: ${file.name}. Tap "AI Add"!`, "#4f46e5");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function processExpense() {
+      if (!geminiKey) {
+        toggleSettings();
+        return showStatus("Please enter your Gemini API Key first.", "#e11d48");
+      }
+
+      const textInput = document.getElementById("expenseText").value.trim();
+      if (!textInput && !selectedImageBase64) {
+        return showStatus("Type an expense or scan a bill first.", "#e11d48");
+      }
+
+      const btn = document.getElementById("analyzeBtn");
+      btn.disabled = true;
+      btn.textContent = "Analyzing...";
+      showStatus("AI is reading & categorizing items...", "#4f46e5");
+
+      const prompt = `Extract all expense items from the input or receipt image.
+Categorize each item strictly into one of these exact categories:
+- "Provision" (raw groceries, vegetables, fruits, milk, rice, oil, spices, household/cleaning essentials)
+- "Food" (restaurant dining, takeaway, snacks, tea/coffee shops, bakery, Swiggy/Zomato delivery)
+- "Bills" (electricity, water, internet, mobile recharge, rent, gas cylinder)
+- "Travel" (petrol, auto, cab, bus, train, flight)
+- "Medical" (pharmacy, doctor, lab tests, medicines)
+- "Other" (anything else)
+
+Return ONLY a valid JSON array of objects with keys: "item" (string), "category" (exact string from list), and "amount" (number in INR).
+User note: ${textInput}`;
+
+      const parts = [{ text: prompt }];
+      if (selectedImageBase64) {
+        parts.push({ inline_data: { mime_type: selectedImageMime, data: selectedImageBase64 } });
+      }
+
+      try {
+        const response = await fetch(
+          `https://googleapis.com{geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          }
+        );
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+
+        const rawJson = data.candidates[0].content.parts[0].text;
+        const parsedItems = JSON.parse(rawJson);
+
+        const now = new Date();
+        const today = now.toLocaleDateString("en-IN");
+        const monthKey = now.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+
+        parsedItems.forEach(entry => {
+          expenses.unshift({
+            id: Date.now() + Math.random(),
+            date: today,
+            month: monthKey,
+            item: entry.item,
+            category: entry.category || "Other",
+            amount: Number(entry.amount) || 0,
+            backedUp: false
+          });
+        });
+
+        saveAndRender();
+        document.getElementById("expenseText").value = "";
+        document.getElementById("billImageInput").value = "";
+        selectedImageBase64 = null;
+        showStatus(`Added ${parsedItems.length} item(s)!`, "#059669");
+      } catch (err) {
+        showStatus("Error: " + err.message, "#e11d48");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "✨ AI Add";
+      }
+    }
+
+    function populateMonthDropdown() {
+      const select = document.getElementById("monthFilter");
+      const currentVal = select.value;
+      const months = [...new Set(expenses.map(e => e.month).filter(Boolean))];
+      select.innerHTML = `<option value="ALL">All Time</option>`;
+      months.forEach(m => {
+        select.innerHTML += `<option value="${m}">${m}</option>`;
+      });
+      if (months.includes(currentVal)) select.value = currentVal;
+    }
+
+    function deleteExpense(id) {
+      expenses = expenses.filter(e => e.id !== id);
+      saveAndRender();
+    }
+
+    function clearAllData() {
+      if (confirm("Delete all locally saved expenses?")) {
+        expenses = [];
+        saveAndRender();
+      }
+    }
+
+    function saveAndRender() {
+      localStorage.setItem("ai_expenses_v2", JSON.stringify(expenses));
+      populateMonthDropdown();
+      renderUI();
+    }
+
+    function getFilteredExpenses() {
+      const selectedMonth = document.getElementById("monthFilter").value;
+      if (selectedMonth === "ALL") return expenses;
+      return expenses.filter(e => e.month === selectedMonth);
+    }
+
+    function renderUI() {
+      const filtered = getFilteredExpenses();
+      let provision = 0, food = 0, other = 0;
+
+      const listEl = document.getElementById("expenseList");
+      listEl.innerHTML = "";
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<p style="text-align:center; font-size:13px; color:#94a3b8; padding:20px;">No expenses recorded for this period.</p>`;
+      }
+
+      filtered.forEach(exp => {
+        if (exp.category === "Provision") provision += exp.amount;
+        else if (exp.category === "Food") food += exp.amount;
+        else other += exp.amount;
+
+        listEl.innerHTML += `
+          <div class="entry-item">
+            <div>
+              <div class="entry-title">${exp.item}</div>
+              <div class="entry-meta">
+                <span class="badge b-${exp.category}">${exp.category}</span>
+                <span style="font-size:11px; color:#64748b;">${exp.date}</span>
+                ${exp.backedUp ? '<span style="font-size:10px; color:#059669; font-weight:700;">✓ Synced</span>' : ''}
+              </div>
+            </div>
+            <div style="display:flex; align-items:center;">
+              <span class="entry-amt">₹${exp.amount.toFixed(0)}</span>
+              <button class="del-btn" onclick="deleteExpense(${exp.id})">✕</button>
+            </div>
+          </div>
+        `;
+      });
+
+      const grandTotal = provision + food + other;
+      const diff = Math.abs(provision - food);
+
+      document.getElementById("provisionTotal").textContent = `₹${provision.toFixed(0)}`;
+      document.getElementById("foodTotal").textContent = `₹${food.toFixed(0)}`;
+      document.getElementById("otherTotal").textContent = `₹${other.toFixed(0)}`;
+      document.getElementById("grandTotal").textContent = `₹${grandTotal.toFixed(0)}`;
+      document.getElementById("diffAmount").textContent = `₹${diff.toFixed(0)}`;
+
+      const diffLabel = document.getElementById("diffLabel");
+      if (provision > food) diffLabel.textContent = `Provision is ₹${diff.toFixed(0)} higher than Food`;
+      else if (food > provision) diffLabel.textContent = `Food is ₹${diff.toFixed(0)} higher than Provision`;
+      else diffLabel.textContent = "Provision and Food are equal";
+    }
+
+    async function backupToGoogleSheets() {
+      if (!sheetUrl) {
+        toggleSettings();
+        return showStatus("Enter your Google Sheets Web App URL in Setup Keys.", "#e11d48");
+      }
+
+      const unsynced = expenses.filter(e => !e.backedUp);
+      if (unsynced.length === 0) {
+        return showStatus("All entries are already backed up!", "#059669");
+      }
+
+      const btn = document.getElementById("backupBtn");
+      btn.disabled = true;
+      btn.textContent = "Syncing...";
+
+      try {
+        await fetch(sheetUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(unsynced)
+        });
+
+        expenses.forEach(e => e.backedUp = true);
+        saveAndRender();
+        showStatus(`Backed up ${unsynced.length} item(s) to Google Sheets!`, "#059669");
+      } catch (err) {
+        showStatus("Backup failed: " + err.message, "#e11d48");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "☁️ Backup Sheets";
+      }
+    }
+
+    function exportCSV() {
+      const data = getFilteredExpenses();
+      if (data.length === 0) return showStatus("No expenses to export.", "#e11d48");
+
+      let csv = "Date,Month,Item,Category,Amount (INR)\n";
+      data.forEach(row => {
+        const cleanItem = `"${row.item.replace(/"/g, '""')}"`;
+        csv += `${row.date},"${row.month}",${cleanItem},${row.category},${row.amount}\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `provision-vs-food-expenses-${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showStatus("CSV downloaded!", "#0284c7");
+    }
+  </script>
+</body>
+</html>
