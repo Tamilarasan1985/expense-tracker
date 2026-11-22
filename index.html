@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Provision vs Food AI Tracker v2</title>
+  <title>Provision vs Food Hybrid Tracker</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: #f1f5f9; color: #1e293b; padding-bottom: 60px; }
@@ -18,10 +18,11 @@
     label { display: block; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; }
     input[type="password"], input[type="url"], textarea, select { width: 100%; padding: 11px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; color: #0f172a; margin-bottom: 10px; }
     textarea { resize: none; }
-    .btn { width: 100%; padding: 12px; border: none; border-radius: 11px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; }
+    .btn { width: 100%; padding: 11px; border: none; border-radius: 11px; font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
     .btn-dark { background: #0f172a; color: #fff; }
     .btn-primary { background: #4f46e5; color: #fff; }
     .btn-primary:disabled { opacity: 0.6; }
+    .btn-offline { background: #334155; color: #fff; }
     .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
     .btn-green { background: #059669; color: #fff; font-size: 12px; padding: 10px; }
     .btn-blue { background: #0284c7; color: #fff; font-size: 12px; padding: 10px; }
@@ -37,7 +38,7 @@
     .diff-val { font-size: 20px; font-weight: 800; color: #4f46e5; }
     .diff-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
     .other-bar { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; font-size: 12px; color: #475569; }
-    .row-actions { display: flex; gap: 8px; }
+    .row-actions { display: flex; gap: 8px; margin-bottom: 8px; }
     .status { font-size: 12px; text-align: center; margin-top: 8px; font-weight: 600; }
     .entry-item { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .entry-title { font-size: 14px; font-weight: 600; color: #1e293b; }
@@ -57,8 +58,8 @@
 
   <header>
     <div>
-      <h1>Provision vs. Food AI</h1>
-      <p>Smart Expense, Scan & Sheets Backup</p>
+      <h1>Provision vs. Food</h1>
+      <p>AI Scan + Offline Mode + Sheets</p>
     </div>
     <button class="btn-header" onclick="toggleSettings()">⚙️ Setup Keys</button>
   </header>
@@ -66,7 +67,7 @@
   <main>
     <!-- Settings Panel -->
     <section id="settingsPanel" class="card hidden">
-      <label>Gemini API Key (Required for AI)</label>
+      <label>Gemini API Key (Optional — Needed for AI / Bill Scan)</label>
       <input id="geminiKeyInput" type="password" placeholder="AIzaSy..." />
       <label>Google Sheets Web App URL (Optional Backup)</label>
       <input id="sheetUrlInput" type="url" placeholder="https://google.com" />
@@ -114,22 +115,38 @@
       </div>
     </section>
 
-    <!-- AI Text Input & Camera Scan -->
+    <!-- Hybrid Input Section (AI + Offline) -->
     <section class="card">
-      <label>Add Expense via Text or Receipt Photo</label>
-      <textarea id="expenseText" rows="2" placeholder="e.g., Rice 350, milk 60, Zomato biryani 280, auto 90"></textarea>
+      <label>Add Expenses (Text or Receipt Photo)</label>
+      <textarea id="expenseText" rows="2" placeholder="e.g., Rice 350, milk 60, biryani 280, tea 20"></textarea>
+      
+      <!-- Row 1: Camera Scan + AI Add -->
       <div class="row-actions">
         <label class="btn btn-secondary" style="margin:0; flex:1; text-transform:none;">
           📷 Scan Bill
           <input id="billImageInput" type="file" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)" />
         </label>
-        <button id="analyzeBtn" class="btn btn-primary" style="flex:1;" onclick="processExpense()">✨ AI Add</button>
+        <button id="analyzeBtn" class="btn btn-primary" style="flex:1;" onclick="processAIExpense()">✨ AI Add</button>
       </div>
+
+      <!-- Row 2: Category Override + Offline Add (Zero API Quota) -->
+      <div class="row-actions" style="margin-bottom:0;">
+        <select id="categorySelect" style="margin:0; flex:1; font-size:12px; padding:9px;">
+          <option value="AUTO">Offline: Auto-Detect</option>
+          <option value="Provision">Offline: Provision</option>
+          <option value="Food">Offline: Food</option>
+          <option value="Bills">Offline: Bills</option>
+          <option value="Travel">Offline: Travel</option>
+          <option value="Medical">Offline: Medical</option>
+          <option value="Other">Offline: Other</option>
+        </select>
+        <button class="btn btn-offline" style="flex:1;" onclick="addOfflineExpense()">⚡ Offline Add</button>
+      </div>
+
       <div id="statusMsg" class="status hidden"></div>
     </section>
-
     <!-- Backup & Export Actions -->
-    <section class="row-actions">
+    <section class="row-actions" style="margin-bottom:0;">
       <button id="backupBtn" class="btn btn-green" style="flex:1;" onclick="backupToGoogleSheets()">☁️ Backup Sheets</button>
       <button class="btn btn-blue" style="flex:1;" onclick="exportCSV()">📥 Export CSV</button>
       <button class="btn btn-danger" onclick="clearAllData()">Clear</button>
@@ -151,7 +168,6 @@
 
     document.getElementById("geminiKeyInput").value = geminiKey;
     document.getElementById("sheetUrlInput").value = sheetUrl;
-    if (!geminiKey) document.getElementById("settingsPanel").classList.remove("hidden");
 
     populateMonthDropdown();
     renderUI();
@@ -166,7 +182,7 @@
       localStorage.setItem("gemini_api_key", geminiKey);
       localStorage.setItem("google_sheet_url", sheetUrl);
       toggleSettings();
-      showStatus("Settings saved locally!", "#059669");
+      showStatus("Configuration saved locally!", "#059669");
     }
 
     function showStatus(msg, color = "#475569") {
@@ -183,15 +199,15 @@
       reader.onload = function(e) {
         selectedImageMime = file.type;
         selectedImageBase64 = e.target.result.split(",")[1];
-        showStatus(`Receipt attached: ${file.name}. Tap "AI Add"!`, "#4f46e5");
+        showStatus(`Receipt attached: ${file.name}. Tap "✨ AI Add" to scan!`, "#4f46e5");
       };
       reader.readAsDataURL(file);
     }
 
-    async function processExpense() {
+    // 1. AI MODE (Uses Gemini API Key + Camera Scan)
+    async function processAIExpense() {
       if (!geminiKey) {
-        toggleSettings();
-        return showStatus("Please enter your Gemini API Key first.", "#e11d48");
+        return showStatus("No API Key set — use '⚡ Offline Add' below or add key in Setup!", "#d97706");
       }
 
       const textInput = document.getElementById("expenseText").value.trim();
@@ -260,13 +276,74 @@ User note: ${textInput}`;
         document.getElementById("expenseText").value = "";
         document.getElementById("billImageInput").value = "";
         selectedImageBase64 = null;
-        showStatus(`Added ${parsedItems.length} item(s)!`, "#059669");
+        showStatus(`AI added ${parsedItems.length} item(s)!`, "#059669");
       } catch (err) {
-        showStatus("Error: " + err.message, "#e11d48");
+        showStatus("AI paused (" + err.message + ") — tap '⚡ Offline Add' to save without API!", "#e11d48");
       } finally {
         btn.disabled = false;
         btn.textContent = "✨ AI Add";
       }
+    }
+
+    // 2. OFFLINE MODE (Zero API Key / Zero Internet Needed)
+    function detectCategory(itemName) {
+      const text = itemName.toLowerCase();
+      const provisionWords = ["rice", "dal", "milk", "oil", "veg", "vegetable", "fruit", "onion", "tomato", "potato", "atta", "flour", "sugar", "salt", "tea powder", "coffee powder", "masala", "spice", "grocery", "groceries", "kirana", "provision", "soap", "shampoo", "detergent", "paste", "egg", "curd", "paneer", "ghee", "butter", "bread", "water can"];
+      const foodWords = ["biryani", "dosa", "idli", "pongal", "vada", "parotta", "chapati", "meal", "meals", "lunch", "dinner", "breakfast", "tea", "coffee", "juice", "snack", "bakery", "cake", "puffs", "shawarma", "pizza", "burger", "chicken", "mutton", "fish", "hotel", "restaurant", "cafe", "swiggy", "zomato", "order", "takeaway", "ice cream"];
+      const billWords = ["eb", "electricity", "current", "water bill", "wifi", "internet", "broadband", "recharge", "mobile", "rent", "gas", "cylinder", "dth"];
+      const travelWords = ["petrol", "diesel", "fuel", "auto", "cab", "uber", "ola", "rapido", "bus", "train", "metro", "ticket", "parking", "toll"];
+      const medWords = ["medicine", "tablet", "pharmacy", "medical", "doctor", "hospital", "clinic", "scan", "test", "syrup"];
+
+      if (provisionWords.some(w => text.includes(w))) return "Provision";
+      if (foodWords.some(w => text.includes(w))) return "Food";
+      if (billWords.some(w => text.includes(w))) return "Bills";
+      if (travelWords.some(w => text.includes(w))) return "Travel";
+      if (medWords.some(w => text.includes(w))) return "Medical";
+      return "Provision";
+    }
+
+    function addOfflineExpense() {
+      const rawText = document.getElementById("expenseText").value.trim();
+      const chosenCat = document.getElementById("categorySelect").value;
+
+      if (!rawText) {
+        return showStatus("Enter item & amount (e.g., Rice 350, Dosa 120).", "#e11d48");
+      }
+
+      const entries = rawText.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+      const now = new Date();
+      const today = now.toLocaleDateString("en-IN");
+      const monthKey = now.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+
+      let addedCount = 0;
+
+      entries.forEach(line => {
+        const match = line.match(/^(.*?)\s*(?:rs\.?|₹)?\s*(\d+(?:\.\d+)?)\s*$/i);
+        if (match) {
+          const itemName = match[1].replace(/[-:]/g, "").trim() || "Item";
+          const amount = parseFloat(match[2]);
+          const category = chosenCat === "AUTO" ? detectCategory(itemName) : chosenCat;
+
+          expenses.unshift({
+            id: Date.now() + Math.random(),
+            date: today,
+            month: monthKey,
+            item: itemName.charAt(0).toUpperCase() + itemName.slice(1),
+            category: category,
+            amount: amount,
+            backedUp: false
+          });
+          addedCount++;
+        }
+      });
+
+      if (addedCount === 0) {
+        return showStatus("Include a price number, e.g., 'Milk 60, Dosa 120'", "#e11d48");
+      }
+
+      saveAndRender();
+      document.getElementById("expenseText").value = "";
+      showStatus(`Offline added ${addedCount} item(s)!`, "#059669");
     }
 
     function populateMonthDropdown() {
@@ -409,3 +486,4 @@ User note: ${textInput}`;
   </script>
 </body>
 </html>
+
